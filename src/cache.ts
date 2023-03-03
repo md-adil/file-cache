@@ -13,8 +13,7 @@ export interface BaseOption {
 export interface SetOption extends BaseOption {}
 
 export type Callback<T> = (cache: Cache) => PromiseLike<T> | T;
-const VALUE = ".",
-    TTL = "-";
+
 export interface CacheOption extends BaseOption {
     ttl?: number;
     dir?: string;
@@ -49,7 +48,7 @@ export class Cache {
         if (!(key in this.#data)) {
             return null;
         }
-        const ttl = this.#data[key][TTL];
+        const [, ttl] = this.#data[key];
         if (ttl && ttl < time()) {
             return null;
         }
@@ -70,10 +69,7 @@ export class Cache {
 
     set(key: Key, value: any, config: SetOption = {}) {
         key = this.#getKey(key);
-        this.#data[key] = {
-            [VALUE]: value,
-            [TTL]: this.#getTTL(config.ttl ?? this.opt.ttl),
-        };
+        this.#data[key] = [value, this.#getTTL(config.ttl ?? this.opt.ttl)];
         this.#sync();
         return this;
     }
@@ -83,7 +79,8 @@ export class Cache {
         if (!key) {
             return def;
         }
-        return this.#data[key][VALUE];
+        const [value] = this.#data[key];
+        return value;
     }
     #getTTL(ttl?: number) {
         if (!ttl) {
@@ -111,16 +108,9 @@ export class Cache {
     }
     #read(loc: string) {
         try {
-            const json = readFileSync(loc, { encoding: "utf-8" });
-            if (!json) {
-                return {};
-            }
-            return JSON.parse(json);
-        } catch (err: any) {
-            if (err.code === "ENOENT") {
-                return {};
-            }
-            throw err;
+            return JSON.parse(readFileSync(loc, { encoding: "utf-8" }));
+        } catch (err) {
+            return {};
         }
     }
 }

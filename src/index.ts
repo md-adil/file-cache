@@ -26,7 +26,7 @@ const params = { hello: "somethings" };
             console.log("getting data");
             return "Wow! i am awesome something";
         },
-        { ttl: 60 }
+        {}
     );
 
     console.log({ data, data2 });
