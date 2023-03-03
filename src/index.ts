@@ -8,22 +8,26 @@ Cache.defaults.dir = dir;
 
 const cache = <T>(key: Key, cb: Callback<T>, opt: SetOption) => Cache.create(key, cb, { name: "cache", ...opt });
 
+const query = { name: "somethings" };
+const params = { hello: "somethings" };
 (async () => {
     const data = await cache(
-        "keys",
+        [query, params],
         () => {
-            console.log("Calling from hello");
+            console.log("Generating...");
             return "Wow! i am awesome";
+        },
+        { ttl: 1 }
+    );
+
+    const data2 = await cache(
+        "with some key",
+        async () => {
+            console.log("getting data");
+            return "Wow! i am awesome something";
         },
         { ttl: 60 }
     );
 
-    const data2 = await cache(
-        ["something another", { name: "adil" }],
-        async () => {
-            return "Woow! i am awesome something";
-        },
-        { ttl: 60 }
-    );
-    console.log({ data2, data });
+    console.log({ data, data2 });
 })();

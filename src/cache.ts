@@ -13,7 +13,8 @@ export interface BaseOption {
 export interface SetOption extends BaseOption {}
 
 export type Callback<T> = (cache: Cache) => PromiseLike<T> | T;
-
+const VALUE = ".",
+    TTL = "-";
 export interface CacheOption extends BaseOption {
     ttl?: number;
     dir?: string;
@@ -43,15 +44,16 @@ export class Cache {
         this.#data = this.#read(this.#location);
     }
 
-    exists(key: Key) {
+    exists(key: Key): string | null {
+        key = this.#getKey(key);
         if (!(key in this.#data)) {
-            return false;
+            return null;
         }
-        const ttl = this.#data[key].ttl;
-        if (!ttl) {
-            return true;
+        const ttl = this.#data[key][TTL];
+        if (ttl && ttl < time()) {
+            return null;
         }
-        return time() < ttl;
+        return key;
     }
 
     clean() {
@@ -60,37 +62,41 @@ export class Cache {
     }
 
     delete(key: Key) {
-        key = this.#toKey(key);
+        key = this.#getKey(key);
         delete this.#data[key];
         this.#sync();
         return this;
     }
 
     set(key: Key, value: any, config: SetOption = {}) {
-        key = this.#toKey(key);
-        let ttl = config.ttl ?? this.opt.ttl;
-        ttl = ttl ? time() + ttl * 1000 : undefined;
-        this.#data[key] = { value, ttl };
+        key = this.#getKey(key);
+        this.#data[key] = {
+            [VALUE]: value,
+            [TTL]: this.#getTTL(config.ttl ?? this.opt.ttl),
+        };
         this.#sync();
         return this;
     }
 
     get(key: Key, def?: any) {
-        key = this.#toKey(key);
-        if (!this.exists(key)) {
+        key = this.exists(key);
+        if (!key) {
             return def;
         }
-        const data = this.#data[key];
-        return data.value;
+        return this.#data[key][VALUE];
     }
-
-    #toKey(name: Key) {
+    #getTTL(ttl?: number) {
+        if (!ttl) {
+            return;
+        }
+        return time() + ttl * 1000;
+    }
+    #getKey(name: Key) {
         if (typeof name === "string") {
-            return `s:${name}`;
+            return name;
         }
         return sha1(JSON.stringify(name));
     }
-
     #sync() {
         try {
             writeFileSync(this.#location, JSON.stringify(this.#data));
