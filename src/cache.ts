@@ -14,16 +14,16 @@ export interface SetOption extends BaseOption {}
 
 export type Callback<T> = (cache: Cache) => PromiseLike<T> | T;
 
+export type Key = any;
+export type Data<T> = Record<string, [T, number | null]>;
+
 export interface CacheOption extends BaseOption {
     ttl?: number;
-    dir?: string;
-    name: string;
+    path: string;
 }
 
-export type Key = any;
-
 export class Cache {
-    static defaults: Omit<CacheOption, "name"> = {};
+    static defaults: Omit<CacheOption, "path"> = {};
 
     static async create<T>(key: Key, callback: Callback<T>, { ttl, ...opt }: CacheOption) {
         const cache = new Cache(opt);
@@ -35,12 +35,12 @@ export class Cache {
         return data;
     }
 
-    #data: any;
-    #location: string;
+    #data: Data<unknown>;
+    #path: string;
 
     constructor(public readonly opt: CacheOption) {
-        this.#location = path.resolve(opt.dir ?? Cache.defaults.dir ?? "", opt.name);
-        this.#data = this.#read(this.#location);
+        this.#path = path.resolve(opt.path);
+        this.#data = this.#read(this.#path);
     }
 
     exists(key: Key): string | null {
@@ -49,6 +49,9 @@ export class Cache {
             return null;
         }
         const [, ttl] = this.#data[key];
+        if (ttl === 0) {
+            return null;
+        }
         if (ttl && ttl < time()) {
             return null;
         }
@@ -67,7 +70,7 @@ export class Cache {
         return this;
     }
 
-    set(key: Key, value: any, config: SetOption = {}) {
+    set(key: Key, value: unknown, config: SetOption = {}) {
         key = this.#getKey(key);
         this.#data[key] = [value, this.#getTTL(config.ttl ?? this.opt.ttl)];
         this.#sync();
@@ -83,8 +86,11 @@ export class Cache {
         return value;
     }
     #getTTL(ttl?: number) {
+        if (ttl === 0) {
+            return 0;
+        }
         if (!ttl) {
-            return;
+            return null;
         }
         return time() + ttl * 1000;
     }
@@ -96,17 +102,17 @@ export class Cache {
     }
     #sync() {
         try {
-            writeFileSync(this.#location, JSON.stringify(this.#data));
+            writeFileSync(this.#path, JSON.stringify(this.#data));
         } catch (err: any) {
-            if (err.code === "ENOENT" && this.opt.dir) {
-                mkdirSync(this.opt.dir, { recursive: true });
+            if (err.code === "ENOENT") {
+                mkdirSync(path.dirname(this.#path), { recursive: true });
                 this.#sync();
                 return;
             }
             throw err;
         }
     }
-    #read(loc: string) {
+    #read(loc: string): Data<unknown> {
         try {
             return JSON.parse(readFileSync(loc, { encoding: "utf-8" }));
         } catch (err) {

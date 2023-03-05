@@ -1,12 +1,8 @@
-import { Cache, CacheOption, Callback, Key, SetOption } from "./cache";
-import { homedir } from "node:os";
+import { Cache, Callback, Key, SetOption } from "./cache";
 import { resolve } from "node:path";
-const { name } = require("../package.json");
-const dir = resolve(homedir(), ".config", name);
+const dir = resolve(".cache");
 
-Cache.defaults.dir = dir;
-
-const cache = <T>(key: Key, cb: Callback<T>, opt: SetOption) => Cache.create(key, cb, { name: "cache", ...opt });
+const cache = <T>(key: Key, cb: Callback<T>, opt: SetOption) => Cache.create(key, cb, { path: dir + "/cache", ...opt });
 
 const query = { name: "somethings" };
 const params = { hello: "somethings" };
@@ -19,15 +15,13 @@ const params = { hello: "somethings" };
         },
         { ttl: 1 }
     );
-
+    // new Cache({ name: "cache" }).delete("with some key");
     const data2 = await cache(
-        "with some key",
+        "with some keys",
         async () => {
-            console.log("getting data");
-            return "Wow! i am awesome something";
+            return fetch("http://api.github.com/users").then((x) => x.json());
         },
-        {}
+        { ttl: 100 }
     );
-
     console.log({ data, data2 });
 })();
