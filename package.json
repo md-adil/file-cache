@@ -1,7 +1,10 @@
 {
-    "name": "file-cache",
+    "name": "fs-cache",
+    "main": "dist/index.js",
+    "version": "0.0.1",
     "scripts": {
-        "dev": "tsc -w"
+        "dev": "tsc -w",
+        "build": "tsc --build"
     },
     "dependencies": {
         "typescript": "^4.9.5"
