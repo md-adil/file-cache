@@ -1,6 +1,7 @@
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { writeFile, readFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { sha1 } from "./hash";
+import { deserialize, serialize } from "./serialize";
 
 function time() {
     return Date.now();
@@ -15,7 +16,7 @@ export interface SetOption extends BaseOption {}
 export type Callback<T> = (cache: Cache) => PromiseLike<T> | T;
 
 export type Key = any;
-export type Data<T> = Record<string, [T, number | null]>;
+export type Data<T> = Record<string, [T, number] | [T]>;
 
 export interface CacheOption extends BaseOption {
     ttl?: number;
@@ -23,32 +24,20 @@ export interface CacheOption extends BaseOption {
 }
 
 export class Cache {
-    static defaults: Omit<CacheOption, "path"> = {};
-
-    static async create<T>(key: Key, callback: Callback<T>, { ttl, ...opt }: CacheOption) {
-        const cache = new Cache(opt);
-        let data: T = cache.get(key);
-        if (!data) {
-            data = await callback(cache);
-            cache.set(key, data, { ttl });
-        }
-        return data;
-    }
-
-    #data: Data<unknown>;
+    #data: Data<unknown> | null = null;
     #path: string;
 
     constructor(public readonly opt: CacheOption) {
         this.#path = path.resolve(opt.path);
-        this.#data = this.#read(this.#path);
     }
 
-    exists(key: Key): string | null {
+    async exists(key: Key): Promise<string | null> {
+        const data = await this.#read();
         key = this.#getKey(key);
-        if (!(key in this.#data)) {
+        if (!(key in data)) {
             return null;
         }
-        const [, ttl] = this.#data[key];
+        const [, ttl] = data[key];
         if (ttl === 0) {
             return null;
         }
@@ -58,33 +47,50 @@ export class Cache {
         return key;
     }
 
+    async remember<T>(key: Key, seconds: number, callback: Callback<T>) {
+        let data: T = await this.get(key);
+        if (!data) {
+            data = await callback(this);
+            await this.set(key, data, { ttl: seconds });
+        }
+        return data;
+    }
+
     clean() {
         this.#data = {};
-        this.#sync();
+        return this.#sync();
     }
 
-    delete(key: Key) {
+    async remove(key: Key) {
+        const data = await this.#read();
         key = this.#getKey(key);
-        delete this.#data[key];
-        this.#sync();
+        delete data[key];
+        await this.#sync();
         return this;
     }
 
-    set(key: Key, value: unknown, config: SetOption = {}) {
+    async set(key: Key, value: unknown, config: SetOption = {}) {
+        const data = await this.#read();
         key = this.#getKey(key);
-        this.#data[key] = [value, this.#getTTL(config.ttl ?? this.opt.ttl)];
-        this.#sync();
-        return this;
+        const ttl = this.#getTTL(config.ttl ?? this.opt.ttl);
+        if (ttl === null) {
+            data[key] = [value];
+        } else {
+            data[key] = [value, ttl];
+        }
+        return this.#sync();
     }
 
-    get(key: Key, def?: any) {
-        key = this.exists(key);
+    async get(key: Key, def?: any) {
+        const data = await this.#read();
+        key = await this.exists(key);
         if (!key) {
             return def;
         }
-        const [value] = this.#data[key];
+        const [value] = data[key];
         return value;
     }
+
     #getTTL(ttl?: number) {
         if (ttl === 0) {
             return 0;
@@ -94,29 +100,34 @@ export class Cache {
         }
         return time() + ttl * 1000;
     }
+
     #getKey(name: Key) {
         if (typeof name === "string") {
             return name;
         }
         return sha1(JSON.stringify(name));
     }
-    #sync() {
+
+    async #sync() {
         try {
-            writeFileSync(this.#path, JSON.stringify(this.#data));
+            await writeFile(this.#path, serialize(this.#data));
         } catch (err: any) {
             if (err.code === "ENOENT") {
-                mkdirSync(path.dirname(this.#path), { recursive: true });
-                this.#sync();
-                return;
+                await mkdir(path.dirname(this.#path), { recursive: true });
+                await this.#sync();
             }
             throw err;
         }
     }
-    #read(loc: string): Data<unknown> {
-        try {
-            return JSON.parse(readFileSync(loc, { encoding: "utf-8" }));
-        } catch (err) {
-            return {};
+    async #read(): Promise<Data<unknown>> {
+        if (this.#data) {
+            return this.#data;
         }
+        try {
+            this.#data = deserialize(await readFile(this.#path, { encoding: "utf-8" }));
+        } catch (err) {
+            this.#data = {};
+        }
+        return this.#data;
     }
 }
