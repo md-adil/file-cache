@@ -1,31 +1,40 @@
 import { rmSync } from "fs";
 import { Cache } from "./cache";
 
+let cache1: Cache, cache2: Cache;
+beforeEach(() => {
+    cache1 = new Cache({ path: "./tmp/.cache" });
+    cache2 = new Cache({ path: "./tmp/.cache" });
+});
+
+afterAll(() => {
+    rmSync("./tmp", { recursive: true });
+});
+
 test("Simple setter and getter", async () => {
-    const cache = new Cache({ path: "/tmp/cache" });
-    await cache.set("name", "Adil");
-    expect(await cache.get("name")).toBe("Adil");
+    await cache1.set("name", "Adil");
+    expect(await cache2.get("name")).toBe("Adil");
 });
 
 test("Setter and getter with timeout", async () => {
     jest.useFakeTimers();
-    const cache = new Cache({ path: "/tmp/cache" });
-    await cache.set("name", "Adil", { ttl: 60 });
-    expect(await cache.get("name")).toBe("Adil");
+    await cache1.set("name", "Adil", { ttl: 60 });
+    expect(await cache2.get("name")).toBe("Adil");
     jest.advanceTimersByTime(1000 * 61);
-    expect(await cache.get("name")).toBeUndefined();
+    expect(await cache2.get("name")).toBeUndefined();
     jest.useRealTimers();
 });
 
 test("With default getter", async () => {
-    const cache = new Cache({ path: "/tmp/not-cache" });
-    expect(await cache.get("something", "not exist")).toBe("not exist");
+    expect(await cache1.get("something", "not exist")).toBe("not exist");
 });
 
 test("test with not existed cache path", async () => {
-    const cache = new Cache({ path: "/tmp/something/not-exists/cache" });
+    const p = "./something/not-exists/cache";
+    const cache = new Cache({ path: p });
     await cache.set("name", "Adil");
     expect(await cache.get("name")).toBe("Adil");
+    rmSync("./something", { recursive: true });
 });
 
 test("test with object key", async () => {
@@ -35,12 +44,11 @@ test("test with object key", async () => {
 });
 
 test("test remember", async () => {
-    const cache = new Cache({ path: "/tmp/cache-remember" });
-    const data = await cache.remember(["something"], 1000, () => {
+    const data = await cache1.remember(["something"], 1000, () => {
         return "something is cool";
     });
     expect(data).toBe("something is cool");
-    const data2 = await cache.remember(["something"], 1000, () => {
+    const data2 = await cache2.remember(["something"], 1000, () => {
         return "something is not cool";
     });
     expect(data2).not.toBe("something is not cool");
@@ -70,9 +78,18 @@ test("delete cache", async () => {
     expect(await cache.get("name")).toBeUndefined();
 });
 
+test("with zero timeout", async () => {
+    await cache1.set("name", "Something different", { ttl: 0 });
+    expect(await cache1.get("name")).toBeUndefined();
+});
+
 test("clean", async () => {
-    const cache = new Cache({ path: "/tmp/to-be-deleted" });
-    await cache.set("name", "something");
-    await cache.clean();
-    expect(await cache.get("name")).toBeUndefined();
+    await cache1.set("name", "something");
+    await cache1.clean();
+    expect(await cache2.get("name")).toBeUndefined();
+});
+
+test("expect an error when try to access readonly files", async () => {
+    const cache = new Cache({ path: "/something.cache" });
+    await expect(() => cache.set("name", "Adil")).rejects.toThrow();
 });

@@ -115,6 +115,7 @@ export class Cache {
             if (err.code === "ENOENT") {
                 await mkdir(path.dirname(this.#path), { recursive: true });
                 await this.#sync();
+                return;
             }
             throw err;
         }
