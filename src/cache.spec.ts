@@ -1,5 +1,6 @@
-import { rmSync } from "fs";
+import { readFileSync, rmSync } from "fs";
 import { Cache } from "./cache";
+import { deserialize } from "./serialize";
 
 let cache1: Cache, cache2: Cache;
 beforeEach(() => {
@@ -92,4 +93,15 @@ test("clean", async () => {
 test("expect an error when try to access readonly files", async () => {
     const cache = new Cache({ path: "/something.cache" });
     await expect(() => cache.set("name", "Adil")).rejects.toThrow();
+});
+
+test("delete old cache from storage", async () => {
+    jest.useFakeTimers();
+    const read = () => deserialize(readFileSync("./tmp/.cache", { encoding: "utf-8" }));
+    await cache1.set("name", "Something", { ttl: 10 });
+    expect(read()["name"][0]).toBe("Something");
+    jest.advanceTimersByTime(1000 * 12);
+    expect(await cache1.get("name")).toBeUndefined();
+    await cache1.set("something", "something else");
+    expect(read()["name"]).toBeUndefined();
 });
