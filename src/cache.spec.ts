@@ -8,7 +8,7 @@ beforeEach(() => {
 });
 
 afterAll(() => {
-    rmSync("./tmp", { recursive: true });
+    rmSync("./tmp", { recursive: true, force: true });
 });
 
 test("Simple setter and getter", async () => {
@@ -56,8 +56,7 @@ test("test remember", async () => {
 
 test("remember with timeout", async () => {
     jest.useFakeTimers();
-    rmSync("/tmp/cache-timeout-remember");
-    const cache = new Cache({ path: "/tmp/cache-timeout-remember" });
+    const cache = new Cache({ path: "./tmp/cache-timeout-remember" });
     const data = await cache.remember(["something"], 1000, () => {
         return "something is cool";
     });
