@@ -8,6 +8,7 @@
         "noImplicitReturns": true,
         "esModuleInterop": true,
         "declaration": true,
+        "declarationMap": true,
         "resolveJsonModule": true,
         "skipLibCheck": true,
         "forceConsistentCasingInFileNames": true
