@@ -42,6 +42,7 @@ export class Cache {
             return null;
         }
         if (ttl && ttl < time()) {
+            delete data[key];
             return null;
         }
         return key;
