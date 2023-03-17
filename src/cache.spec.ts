@@ -8,7 +8,7 @@ beforeEach(() => {
     cache2 = new Cache({ path: "./tmp/.cache" });
 });
 
-afterAll(() => {
+afterEach(() => {
     rmSync("./tmp", { recursive: true, force: true });
 });
 
