@@ -31,13 +31,17 @@ export class Cache {
         return key;
     }
 
-    async remember<T>(key: Key, seconds: number, callback: Callback<T>) {
+    async remember<T>(key: Key, seconds: number | undefined, callback: Callback<T>) {
         let data: T = await this.get(key);
         if (!data) {
             data = await callback(this);
             await this.set(key, data, { ttl: seconds });
         }
         return data;
+    }
+
+    async rememberForever<T>(key: Key, callback: Callback<T>) {
+        return this.remember(key, undefined, callback);
     }
 
     clean() {
