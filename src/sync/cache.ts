@@ -3,7 +3,7 @@ import path from "node:path";
 import { sha1 } from "../hash";
 import { CacheOption, Data, Key, SetOption } from "../interfaces";
 import { deserialize, serialize } from "../serialize";
-import { time } from "../time";
+import { getTTL, time } from "../time";
 
 export type Callback<T> = (cache: Cache) => T;
 export class Cache {
@@ -56,7 +56,7 @@ export class Cache {
     set(key: Key, value: unknown, config: SetOption = {}) {
         const data = this.#read();
         key = this.#getKey(key);
-        const ttl = this.#getTTL(config.ttl ?? this.opt.ttl);
+        const ttl = getTTL(config.ttl ?? this.opt.ttl);
         if (ttl === null) {
             data[key] = [value];
         } else {
@@ -73,16 +73,6 @@ export class Cache {
         }
         const [value] = data[key];
         return value;
-    }
-
-    #getTTL(ttl?: number) {
-        if (ttl === 0) {
-            return 0;
-        }
-        if (!ttl) {
-            return null;
-        }
-        return time() + ttl * 1000;
     }
 
     #getKey(name: Key) {
