@@ -3,7 +3,7 @@ import path from "node:path";
 import { CacheOption, Data, SetOption } from "./interfaces";
 import { Key, makeKey } from "./key";
 import { deserialize, serialize } from "./serialize";
-import { time } from "./time";
+import { getTTL, time } from "./time";
 export type Callback<T> = (cache: Cache) => PromiseLike<T> | T;
 
 export class Cache {
@@ -60,7 +60,7 @@ export class Cache {
     async set(key: Key, value: unknown, config: SetOption = {}) {
         const data = await this.#read();
         key = makeKey(key);
-        const ttl = this.#getTTL(config.ttl ?? this.opt.ttl);
+        const ttl = getTTL(config.ttl ?? this.opt.ttl);
         if (ttl === null) {
             data[key] = [value];
         } else {
@@ -77,16 +77,6 @@ export class Cache {
         }
         const [value] = data[key];
         return value;
-    }
-
-    #getTTL(ttl?: number) {
-        if (ttl === 0) {
-            return 0;
-        }
-        if (!ttl) {
-            return null;
-        }
-        return time() + ttl * 1000;
     }
 
     async #sync() {
