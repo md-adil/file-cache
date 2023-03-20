@@ -4,26 +4,28 @@ import { deserialize } from "../serialize";
 
 let cache1: Cache, cache2: Cache;
 beforeEach(() => {
+    jest.useFakeTimers();
     cache1 = new Cache({ path: "./tmp/.cache-sync" });
     cache2 = new Cache({ path: "./tmp/.cache-sync" });
 });
 
 afterEach(() => {
     rmSync("./tmp", { recursive: true, force: true });
+    jest.useRealTimers();
 });
 
 test("Simple setter and getter", () => {
     cache1.set("name", "Adil");
+    jest.advanceTimersByTime(1); // wait for next tick
     expect(cache2.get("name")).toBe("Adil");
 });
 
 test("Setter and getter with timeout", () => {
-    jest.useFakeTimers();
     cache1.set("name", "Adil", { ttl: 60 });
+    jest.advanceTimersByTime(1);
     expect(cache2.get("name")).toBe("Adil");
     jest.advanceTimersByTime(1000 * 61);
     expect(cache2.get("name")).toBeUndefined();
-    jest.useRealTimers();
 });
 
 test("With default getter", () => {
@@ -31,11 +33,10 @@ test("With default getter", () => {
 });
 
 test("test with not existed cache path", () => {
-    const p = "./something/not-exists/cache";
+    const p = "./tmp/something/not-exists/cache";
     const cache = new Cache({ path: p });
     cache.set("name", "Adil");
     expect(cache.get("name")).toBe("Adil");
-    rmSync("./something", { recursive: true });
 });
 
 test("test with object key", () => {
@@ -49,6 +50,7 @@ test("test remember", () => {
         return "something is cool";
     });
     expect(data).toBe("something is cool");
+    jest.advanceTimersByTime(1);
     const data2 = cache2.remember(["something"], 1000, () => {
         return "something is not cool";
     });
@@ -56,7 +58,6 @@ test("test remember", () => {
 });
 
 test("remember with timeout", () => {
-    jest.useFakeTimers();
     const cache = new Cache({ path: "./tmp/cache-timeout-remember-sync" });
     const data = cache.remember(["something"], 1000, () => {
         return "something is cool";
@@ -67,7 +68,6 @@ test("remember with timeout", () => {
         return "something is not cool";
     });
     expect(data2).toBe("something is not cool");
-    jest.useRealTimers();
 });
 
 test("delete cache", () => {
@@ -91,16 +91,19 @@ test("clean", () => {
 
 test("expect an error when try to access readonly files", () => {
     const cache = new Cache({ path: "/something.cache" });
-    expect(() => cache.set("name", "Adil")).toThrow();
+    expect(() => {
+        cache.set("name", "Adil");
+        jest.advanceTimersByTime(1);
+    }).toThrow();
 });
 
 test("delete old cache from storage", () => {
-    jest.useFakeTimers();
-    const read = () => deserialize(readFileSync("./tmp/.cache-sync", { encoding: "utf-8" }));
+    const read = () => deserialize(readFileSync("./tmp/.cache-sync"));
     cache1.set("name", "Something", { ttl: 10 });
+    jest.advanceTimersByTime(1);
     expect(read()["name"][0]).toBe("Something");
     jest.advanceTimersByTime(1000 * 12);
     expect(cache1.get("name")).toBeUndefined();
-    cache1.set("something", "something else");
+    jest.advanceTimersByTime(1);
     expect(read()["name"]).toBeUndefined();
 });

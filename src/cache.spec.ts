@@ -96,7 +96,7 @@ test("expect an error when try to access readonly files", async () => {
 
 test("delete old cache from storage", async () => {
     jest.useFakeTimers();
-    const read = () => deserialize(readFileSync("./tmp/.cache", { encoding: "utf-8" }));
+    const read = () => deserialize(readFileSync("./tmp/.cache"));
     await cache1.set("name", "Something", { ttl: 10 });
     expect(read()["name"][0]).toBe("Something");
     jest.advanceTimersByTime(1000 * 12);

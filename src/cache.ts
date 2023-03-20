@@ -1,7 +1,7 @@
 import { writeFile, readFile, mkdir } from "node:fs/promises";
 import path from "node:path";
-import { sha1 } from "./hash";
-import { CacheOption, Data, Key, SetOption } from "./interfaces";
+import { CacheOption, Data, SetOption } from "./interfaces";
+import { Key, makeKey } from "./key";
 import { deserialize, serialize } from "./serialize";
 import { time } from "./time";
 export type Callback<T> = (cache: Cache) => PromiseLike<T> | T;
@@ -16,7 +16,7 @@ export class Cache {
 
     async exists(key: Key): Promise<string | null> {
         const data = await this.#read();
-        key = this.#getKey(key);
+        key = makeKey(key);
         if (!(key in data)) {
             return null;
         }
@@ -51,7 +51,7 @@ export class Cache {
 
     async remove(key: Key) {
         const data = await this.#read();
-        key = this.#getKey(key);
+        key = makeKey(key);
         delete data[key];
         await this.#sync();
         return this;
@@ -59,7 +59,7 @@ export class Cache {
 
     async set(key: Key, value: unknown, config: SetOption = {}) {
         const data = await this.#read();
-        key = this.#getKey(key);
+        key = makeKey(key);
         const ttl = this.#getTTL(config.ttl ?? this.opt.ttl);
         if (ttl === null) {
             data[key] = [value];
@@ -87,13 +87,6 @@ export class Cache {
             return null;
         }
         return time() + ttl * 1000;
-    }
-
-    #getKey(name: Key) {
-        if (typeof name === "string") {
-            return name;
-        }
-        return sha1(JSON.stringify(name));
     }
 
     async #sync() {
