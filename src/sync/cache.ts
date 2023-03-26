@@ -1,5 +1,6 @@
 import { writeFileSync as writeFile, readFileSync as readFile, mkdirSync as mkdir } from "node:fs";
 import path from "node:path";
+import { EventEmitter } from "node:stream";
 import { CacheOption, Data, Serializer, SetOption } from "../interfaces";
 import { Key, makeKey } from "../key";
 import * as serializer from "../serialize";
@@ -10,11 +11,18 @@ export class Cache {
     #data: Data<unknown> | null = null;
     #path: string;
     #isDirty = false;
+
+    #emitter: EventEmitter;
     #serializer: Serializer;
 
     constructor(public readonly opt: CacheOption) {
         this.#path = path.resolve(opt.path);
         this.#serializer = opt.serializer ?? serializer;
+        this.#emitter = new EventEmitter();
+    }
+
+    get on() {
+        return this.#emitter.on.bind(this.#emitter);
     }
 
     exists(key: Key): string | null {
@@ -105,7 +113,10 @@ export class Cache {
                 this.#write();
                 return;
             }
-            throw err;
+            if (this.#emitter.listenerCount("error") === 0) {
+                throw err;
+            }
+            this.#emitter.emit("error", err);
         }
     }
     #serialize(data: unknown) {
