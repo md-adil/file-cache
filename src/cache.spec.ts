@@ -1,15 +1,19 @@
 import { readFileSync, rmSync } from "fs";
 import { Cache } from "./cache";
 import { deserialize } from "./serialize";
+import { resolve } from "path";
 
-let cache1: Cache, cache2: Cache;
+let cache1: Cache,
+    cache2: Cache,
+    dir = resolve("tmp"),
+    filename = resolve(dir, ".cache");
 beforeEach(() => {
-    cache1 = new Cache({ path: "./tmp/.cache" });
-    cache2 = new Cache({ path: "./tmp/.cache" });
+    cache1 = new Cache({ path: filename });
+    cache2 = new Cache({ path: filename });
 });
 
 afterEach(() => {
-    rmSync("./tmp", { recursive: true, force: true });
+    rmSync(dir, { recursive: true, force: true });
 });
 
 test("Simple setter and getter", async () => {
@@ -96,9 +100,10 @@ test("expect an error when try to access readonly files", async () => {
 
 test("delete old cache from storage", async () => {
     jest.useFakeTimers();
-    const read = () => deserialize(readFileSync("./tmp/.cache"));
+    const read = () => deserialize(readFileSync(filename));
     await cache1.set("name", "Something", { ttl: 10 });
     expect(read()["name"][0]).toBe("Something");
+    console.log(read(), filename);
     jest.advanceTimersByTime(1000 * 12);
     expect(await cache1.get("name")).toBeUndefined();
     await cache1.set("something", "something else");
