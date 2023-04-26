@@ -1,6 +1,7 @@
 {
     "name": "node-fs-cache",
     "main": "dist/index.js",
+    "license": "MIT",
     "version": "0.0.1",
     "author": {
         "name": "Adil",
