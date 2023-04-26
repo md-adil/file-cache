@@ -1,4 +1,4 @@
-import { readFileSync, rmSync } from "fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { Cache } from "./cache";
 import { deserialize } from "../serialize";
 import { resolve } from "path";
@@ -120,3 +120,17 @@ test("delete old cache from storage", () => {
     jest.advanceTimersByTime(1);
     expect(read()["name"]).toBeUndefined();
 });
+
+
+test('auto correct invalid format', async () => {
+    const f = resolve(dir, 'invalid-cache-async');
+    mkdirSync(dir);
+    writeFileSync(f, 'somehting invalid format');
+    const cache = new Cache({ path: f });
+    expect(cache.get('name')).toBeUndefined();
+    cache.set('name', 'something important');
+    expect(cache.get('name')).toBe('something important');
+    const cache2 = new Cache({ path: f });
+    jest.advanceTimersByTime(1);
+    expect(cache2.get('name')).toBe('something important');
+})

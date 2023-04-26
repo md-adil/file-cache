@@ -1,4 +1,4 @@
-import { readFileSync, rmSync } from "fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { Cache } from "./cache";
 import { deserialize } from "./serialize";
 import { resolve } from "path";
@@ -18,6 +18,7 @@ afterEach(() => {
 });
 
 test("Simple setter and getter", async () => {
+    expect(await cache1.get('name')).toBeUndefined();
     await cache1.set("name", "Adil");
     expect(await cache2.get("name")).toBe("Adil");
 });
@@ -118,3 +119,15 @@ test("custom serializer", async () => {
     expect(data.name).toEqual(["adil"]);
     expect(await cache.get("name")).toBe("adil");
 });
+
+test('auto correct invalid format', async () => {
+    const f = resolve(dir, 'invalid-cache');
+    mkdirSync(dir);
+    writeFileSync(f, 'somehting invalid format');
+    const cache = new Cache({ path: f });
+    expect(await cache.get('name')).toBeUndefined();
+    await cache.set('name', 'something important');
+    expect(await cache.get('name')).toBe('something important');
+    const cache2 = new Cache({ path: f });
+    expect(await cache2.get('name')).toBe('something important');
+})
