@@ -9,9 +9,10 @@ export interface BaseOption {
     ttl?: number;
 }
 
-export interface CacheOption extends BaseOption {
+export interface BaseCacheOption extends BaseOption {
     ttl?: number;
     path: string;
     serializer?: Serializer;
 }
+
 export interface SetOption extends BaseOption {}

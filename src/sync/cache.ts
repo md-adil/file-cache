@@ -1,10 +1,12 @@
 import { writeFileSync as writeFile, readFileSync as readFile, mkdirSync as mkdir } from "node:fs";
 import path from "node:path";
 import { EventEmitter } from "node:stream";
-import { CacheOption, Data, Serializer, SetOption } from "../interfaces";
+import { BaseCacheOption, Data, Serializer, SetOption } from "../interfaces";
 import { Key, makeKey } from "../key";
 import * as serializer from "../serialize";
 import { getTTL, time } from "../time";
+
+export interface CacheOption extends BaseCacheOption {}
 
 export type Callback<T> = (cache: Cache) => T;
 export class Cache {

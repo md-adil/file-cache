@@ -1,17 +1,24 @@
-import { writeFile, readFile, mkdir } from "node:fs/promises";
 import path from "node:path";
-import { CacheOption, Data, SetOption } from "./interfaces";
+import { FSDriver } from "./driver/fs";
+import type { Driver } from "./driver/interfaces";
+import { BaseCacheOption, Data, Serializer, SetOption } from "./interfaces";
 import { Key, makeKey } from "./key";
-import { deserialize, serialize } from "./serialize";
+import * as serializer from "./serialize";
 import { getTTL, time } from "./time";
 export type Callback<T> = (cache: Cache) => PromiseLike<T> | T;
+export interface CacheOption extends BaseCacheOption {
+    driver?: Driver;
+}
 
 export class Cache {
     #data: Data<unknown> | null = null;
     #path: string;
-
+    #serializer: Serializer;
+    #driver: Driver;
     constructor(public readonly opt: CacheOption) {
         this.#path = path.resolve(opt.path);
+        this.#serializer = opt.serializer ?? serializer;
+        this.#driver = opt.driver ?? new FSDriver();
     }
 
     async exists(key: Key): Promise<string | null> {
@@ -80,23 +87,14 @@ export class Cache {
     }
 
     async #sync() {
-        try {
-            await writeFile(this.#path, serialize(this.#data));
-        } catch (err: any) {
-            if (err.code === "ENOENT") {
-                await mkdir(path.dirname(this.#path), { recursive: true });
-                await this.#sync();
-                return;
-            }
-            throw err;
-        }
+        await this.#driver.write(this.#path, this.#serializer.serialize(this.#data));
     }
     async #read(): Promise<Data<unknown>> {
         if (this.#data) {
             return this.#data;
         }
         try {
-            this.#data = deserialize(await readFile(this.#path));
+            this.#data = this.#serializer.deserialize(await this.#driver.read(this.#path));
         } catch (err) {
             this.#data = {};
         }

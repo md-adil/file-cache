@@ -1,0 +1,7 @@
+/node_modules
+/src
+/coverage
+/build
+/yarn-error.log
+.DS_Store
+.turbo

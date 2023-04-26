@@ -2,6 +2,7 @@ import { readFileSync, rmSync } from "fs";
 import { Cache } from "./cache";
 import { deserialize } from "./serialize";
 import { resolve } from "path";
+import v8 from "v8";
 
 let cache1: Cache,
     cache2: Cache,
@@ -103,9 +104,17 @@ test("delete old cache from storage", async () => {
     const read = () => deserialize(readFileSync(filename));
     await cache1.set("name", "Something", { ttl: 10 });
     expect(read()["name"][0]).toBe("Something");
-    console.log(read(), filename);
     jest.advanceTimersByTime(1000 * 12);
     expect(await cache1.get("name")).toBeUndefined();
     await cache1.set("something", "something else");
     expect(read()["name"]).toBeUndefined();
+});
+
+test("custom serializer", async () => {
+    const cache = new Cache({ path: filename, serializer: v8 });
+    await cache.set("name", "adil");
+    const content = readFileSync(filename);
+    const data = v8.deserialize(content);
+    expect(data.name).toEqual(["adil"]);
+    expect(await cache.get("name")).toBe("adil");
 });
