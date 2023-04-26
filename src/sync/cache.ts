@@ -134,9 +134,13 @@ export class Cache {
         if (this.#data) {
             return this.#data;
         }
+        const content = readFile(this.#path);
         try {
-            this.#data = this.#deserialize(readFile(this.#path));
+            this.#data = this.#deserialize(content);
         } catch (err) {
+            if (err instanceof Error) {
+                console.warn(err.message);
+            }
             this.#data = {};
         }
         return this.#data;

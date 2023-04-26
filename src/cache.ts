@@ -93,9 +93,13 @@ export class Cache {
         if (this.#data) {
             return this.#data;
         }
+        const content = await this.#driver.read(this.#path);
         try {
-            this.#data = this.#serializer.deserialize(await this.#driver.read(this.#path));
+            this.#data = this.#serializer.deserialize(content);
         } catch (err) {
+            if (err instanceof Error) {
+                console.warn(err.message);
+            }
             this.#data = {};
         }
         return this.#data;
