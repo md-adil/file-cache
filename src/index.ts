@@ -1,3 +1,6 @@
-import { Cache, Callback, Key, SetOption } from "./cache";
+export * from "./cache";
+export * from "./interfaces";
 export * from "./hash";
-export { Cache, Callback, Key, SetOption };
+export * from "./serialize";
+export * from "./key";
+export * from "./driver";
